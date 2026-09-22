@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: conectax
+      POSTGRES_PASSWORD: conectax
+      POSTGRES_DB: conectax
+    ports:
+      # Mapped to 5433 on the host to avoid clashing with a local PostgreSQL
+      # install that may already be listening on 5432.
+      - "5433:5432"
+    volumes:
+      - conectax_pgdata:/var/lib/postgresql/data
+
+volumes:
+  conectax_pgdata:

@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ConectaX
 
-## Getting Started
+Comunidade privada de aprendizado e troca de conhecimento — Tecnologia, Livros, Idiomas e Fórum.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Front-end:** Next.js (App Router) + React + TypeScript
+- **Estilização:** Tailwind CSS v4 + shadcn/ui (Base UI)
+- **Back-end:** Server Actions + Route Handlers
+- **Banco de dados:** PostgreSQL + Prisma ORM
+- **Autenticação:** Auth.js (NextAuth v5) — credenciais com hash bcrypt, pronto para OAuth
+- **Armazenamento de arquivos:** S3-compatível (opcional; URLs externas funcionam sem configurar nada)
+
+## Pré-requisitos
+
+- Node.js 20+
+- PostgreSQL (local via Docker, local nativo, ou um serviço gerenciado)
+
+## Configuração local
+
+1. Instale as dependências:
+
+   ```bash
+   npm install
+   ```
+
+2. Copie o arquivo de ambiente de exemplo e ajuste os valores:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   No mínimo, defina `DATABASE_URL` e `AUTH_SECRET` (gere um com `npx auth secret`).
+
+3. Suba um Postgres local (opcional — pule se já tiver um banco):
+
+   ```bash
+   docker compose up -d
+   ```
+
+   Isso sobe o Postgres na porta `5433` (para não conflitar com uma instalação nativa na 5432). A `DATABASE_URL` do `.env.example` já aponta para essa porta.
+
+4. Rode as migrations e o seed:
+
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+
+   O seed cria dois usuários de teste:
+   - **Admin:** `admin@conectax.local` / `Admin@123456`
+   - **Usuário:** `usuario@conectax.local` / `Usuario@123456`
+
+5. Rode o servidor de desenvolvimento:
+
+   ```bash
+   npm run dev
+   ```
+
+   Acesse [http://localhost:3000](http://localhost:3000).
+
+## Scripts úteis
+
+| Script              | Descrição                                   |
+| ------------------- | -------------------------------------------- |
+| `npm run dev`        | Servidor de desenvolvimento                  |
+| `npm run build`      | Build de produção                            |
+| `npm run lint`       | ESLint                                       |
+| `npm run db:migrate` | Roda as migrations do Prisma                 |
+| `npm run db:seed`    | Popula o banco com dados de exemplo          |
+| `npm run db:studio`  | Abre o Prisma Studio para inspecionar o banco |
+
+## Estrutura do projeto
+
+```
+prisma/               Schema, migrations e seed
+src/
+  app/                Rotas (App Router)
+    (auth)/           Login, cadastro, recuperação de senha
+    (app)/            Área autenticada (home, módulos, fórum, perfil)
+    admin/            Painel administrativo
+    api/              Route handlers (NextAuth, uploads)
+  components/
+    ui/               Componentes shadcn/ui (Base UI)
+    layout/           Sidebar, header, navegação
+    shared/           Componentes reutilizáveis entre módulos
+    forum/ admin/ profile/ auth/   Componentes específicos de cada área
+  modules/            Regra de negócio por domínio (repository/service/actions/validators)
+    auth/ users/ posts/ categories/ tags/ languages/
+    likes/ comments/ forum/ search/ admin/ media/
+  lib/                Infra: db, auth, s3, mail, rate-limit, slug, constants
+  types/              Tipos compartilhados / augmentation do NextAuth
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Permissões
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **USER:** visualiza conteúdo, curte, comenta (próprios comentários), participa do fórum (cria tópicos e respostas).
+- **ADMIN:** tudo do USER + painel `/admin`, CRUD de conteúdos/categorias/tags/idiomas, moderação de comentários e fórum, gestão de usuários.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Toda checagem de permissão é feita no servidor (middleware + `requireUser`/`requireAdmin` em cada Server Action e página), nunca apenas ocultando botões no front-end.
 
-## Learn More
+## Deploy (Vercel)
 
-To learn more about Next.js, take a look at the following resources:
+1. Crie um banco Postgres gerenciado (Vercel Postgres, Neon, Supabase, RDS...).
+2. Configure as variáveis de ambiente do `.env.example` no projeto da Vercel.
+3. Rode `npx prisma migrate deploy` (via build command ou manualmente) para aplicar as migrations em produção.
+4. Faça o deploy normalmente — o projeto já usa Server Actions e Route Handlers compatíveis com a plataforma.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Login social (preparado, desativado por padrão)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Basta preencher `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` ou `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET` no `.env` — os provedores são ativados automaticamente quando as credenciais existem (veja `src/lib/auth.ts`).

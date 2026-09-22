@@ -1,0 +1,322 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  USER
+}
+
+/// Content pillar a Category/Post belongs to. FORUM is used for forum categories.
+enum ContentModule {
+  TECNOLOGIA
+  LIVROS
+  IDIOMAS
+  FORUM
+}
+
+enum PostType {
+  ARTICLE
+  VIDEO
+  PODCAST
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaType {
+  VIDEO
+  PODCAST
+}
+
+enum ForumTopicStatus {
+  OPEN
+  CLOSED
+  PINNED
+}
+
+// ---------------------------------------------------------------------------
+// Auth (Auth.js / NextAuth) — credentials today, OAuth-ready via Account
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String?
+  avatar       String?
+  bio          String?
+  role         Role    @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  posts               Post[]
+  comments            Comment[]
+  likes               Like[]
+  forumTopics         ForumTopic[]
+  forumReplies        ForumReply[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([role])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// Single-use token for the "esqueci minha senha" flow.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Taxonomy — shared across Tecnologia / Livros / Idiomas / Forum
+// ---------------------------------------------------------------------------
+
+model Category {
+  id     String        @id @default(cuid())
+  name   String
+  slug   String        @unique
+  module ContentModule
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts       Post[]
+  forumTopics ForumTopic[]
+
+  @@index([module])
+}
+
+/// Languages for the Idiomas module. Kept as data (not an enum) so new
+/// languages can be added without a schema migration.
+model Language {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  createdAt DateTime @default(now())
+
+  posts Post[]
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  posts PostTag[]
+}
+
+model PostTag {
+  postId String
+  tagId  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
+
+// ---------------------------------------------------------------------------
+// Content — Tecnologia / Livros / Idiomas share the Post model
+// ---------------------------------------------------------------------------
+
+model Post {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  summary     String?
+  content     String        @db.Text
+  coverImage  String?
+  type        PostType      @default(ARTICLE)
+  status      PostStatus    @default(DRAFT)
+  module      ContentModule
+
+  /// "Autor do livro" — only meaningful for module = LIVROS.
+  bookAuthor String?
+
+  authorId   String
+  categoryId String?
+  languageId String?
+
+  viewCount Int @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  author   User      @relation(fields: [authorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+  language Language? @relation(fields: [languageId], references: [id])
+
+  tags     PostTag[]
+  likes    Like[]
+  comments Comment[]
+  media    Media[]
+
+  @@index([module, status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([languageId])
+}
+
+/// Video/podcast playback metadata for a Post. External URL today;
+/// `provider` + nullable url leave room for self-hosted storage later.
+model Media {
+  id        String    @id @default(cuid())
+  type      MediaType
+  url       String
+  thumbnail String?
+  duration  Int?
+  postId    String    @unique
+
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Interactions — likes & comments (shared by Post and ForumTopic)
+// ---------------------------------------------------------------------------
+
+model Like {
+  id      String @id @default(cuid())
+  userId  String
+  postId  String?
+  topicId String?
+
+  createdAt DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post  Post?       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  topic ForumTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, topicId])
+  @@index([postId])
+  @@index([topicId])
+}
+
+model Comment {
+  id       String  @id @default(cuid())
+  userId   String
+  postId   String
+  parentId String?
+  content  String  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// Forum
+// ---------------------------------------------------------------------------
+
+model ForumTopic {
+  id         String           @id @default(cuid())
+  userId     String
+  categoryId String
+  title      String
+  slug       String           @unique
+  content    String           @db.Text
+  status     ForumTopicStatus @default(OPEN)
+  views      Int              @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id])
+  category Category     @relation(fields: [categoryId], references: [id])
+  replies  ForumReply[]
+  likes    Like[]
+
+  @@index([categoryId])
+  @@index([userId])
+  @@index([status])
+}
+
+model ForumReply {
+  id      String @id @default(cuid())
+  topicId String
+  userId  String
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic ForumTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([userId])
+}
