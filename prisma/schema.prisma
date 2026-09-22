@@ -56,6 +56,8 @@ model User {
   name         String
   email        String  @unique
   passwordHash String?
+  /// Sessions issued before this instant are rejected (set on password reset/change).
+  passwordChangedAt DateTime?
   avatar       String?
   bio          String?
   role         Role    @default(USER)
@@ -118,6 +120,7 @@ model VerificationToken {
 model PasswordResetToken {
   id        String   @id @default(cuid())
   userId    String
+  /// SHA-256 of the token sent by e-mail — the raw token is never stored.
   token     String   @unique
   expiresAt DateTime
   usedAt    DateTime?

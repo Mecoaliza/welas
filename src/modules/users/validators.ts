@@ -2,7 +2,12 @@ import { z } from "zod";
 
 export const profileSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome completo").max(120),
-  avatar: z.string().trim().url("URL de imagem inválida").optional().or(z.literal("")),
+  avatar: z
+    .string()
+    .trim()
+    .url("URL de imagem inválida")
+    .refine((v) => v.startsWith("https://"), "Use um link começando com https://")
+    .optional().or(z.literal("")),
   bio: z.string().trim().max(300, "A bio deve ter no máximo 300 caracteres").optional().or(z.literal("")),
 });
 

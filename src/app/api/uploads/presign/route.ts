@@ -20,6 +20,10 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  // Same rule as the multipart upload route: only admins upload files.
+  if (user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+  }
 
   if (!isS3Configured()) {
     return NextResponse.json(

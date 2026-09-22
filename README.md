@@ -47,9 +47,11 @@ Comunidade privada de aprendizado e troca de conhecimento — Tecnologia, Livros
    npm run db:seed
    ```
 
-   O seed cria dois usuários de teste:
-   - **Admin:** `admin@conectax.local` / `Admin@123456`
-   - **Usuário:** `usuario@conectax.local` / `Usuario@123456`
+   O seed cria dois usuários de teste, com as senhas definidas em `SEED_ADMIN_PASSWORD` e `SEED_USER_PASSWORD` no `.env` (mínimo 12 caracteres):
+   - **Admin:** `admin@conectax.local`
+   - **Usuário:** `usuario@conectax.local`
+
+   O seed nunca sobrescreve usuários que já existem — para trocar a senha de um deles, use a tela de perfil.
 
 5. Rode o servidor de desenvolvimento:
 
@@ -99,12 +101,23 @@ src/
 
 Toda checagem de permissão é feita no servidor (middleware + `requireUser`/`requireAdmin` em cada Server Action e página), nunca apenas ocultando botões no front-end.
 
+## Antes de abrir para outras pessoas
+
+- **Nunca exponha `next dev`.** Use `npm run build && npm run start` — o modo de desenvolvimento mostra stack traces e endpoints internos.
+- Troque as senhas dos usuários criados pelo seed e defina um `POSTGRES_PASSWORD` forte (veja o `docker-compose.yml`).
+- O Postgres do `docker-compose.yml` só escuta em `127.0.0.1`. Não abra a porta 5433 no firewall.
+- Configure SMTP (`EMAIL_SERVER_*`): em produção, sem SMTP, o e-mail de redefinição de senha simplesmente não é enviado.
+- Se houver um proxy reverso (Nginx, Cloudflare, Vercel) na frente do app, defina `TRUST_PROXY=true` para o limite de tentativas usar o IP real do cliente.
+- O limite de tentativas fica em memória: vale para **um** processo. Com várias instâncias, troque por Redis/Upstash (`src/lib/rate-limit.ts`).
+- Uploads sem S3 ficam em `storage/uploads/` — inclua essa pasta no backup junto com o banco.
+
 ## Deploy (Vercel)
 
 1. Crie um banco Postgres gerenciado (Vercel Postgres, Neon, Supabase, RDS...).
 2. Configure as variáveis de ambiente do `.env.example` no projeto da Vercel.
-3. Rode `npx prisma migrate deploy` (via build command ou manualmente) para aplicar as migrations em produção.
-4. Faça o deploy normalmente — o projeto já usa Server Actions e Route Handlers compatíveis com a plataforma.
+3. Configure o S3 (ex.: Cloudflare R2): na Vercel o disco é temporário, então uploads em `storage/uploads/` se perdem.
+4. Faça o deploy. A Vercel roda o script `vercel-build`, que aplica as migrations (`prisma migrate deploy`) antes do `next build`.
+5. Crie o admin uma vez, apontando para o banco de produção: `DATABASE_URL="..." npm run db:seed`.
 
 ## Login social (preparado, desativado por padrão)
 

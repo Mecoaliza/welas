@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { CoverImageField } from "@/components/admin/cover-image-field";
 import "@uiw/react-md-editor/markdown-editor.css";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -61,6 +62,24 @@ const EMPTY_VALUES: PostFormValues = {
   mediaDuration: "",
 };
 
+const MODULE_OPTIONS = [
+  { value: "TECNOLOGIA", label: "Tecnologia" },
+  { value: "LIVROS", label: "Livros" },
+  { value: "IDIOMAS", label: "Idiomas" },
+];
+
+const TYPE_OPTIONS = [
+  { value: "ARTICLE", label: "Artigo" },
+  { value: "VIDEO", label: "Vídeo" },
+  { value: "PODCAST", label: "Podcast" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "DRAFT", label: "Rascunho" },
+  { value: "PUBLISHED", label: "Publicado" },
+  { value: "ARCHIVED", label: "Arquivado" },
+];
+
 const initialState: ActionState = {};
 
 function SubmitButton({ label }: { label: string }) {
@@ -88,9 +107,16 @@ export function PostForm({
 
   const [values, setValues] = useState<PostFormValues>({ ...EMPTY_VALUES, ...defaultValues });
 
-  const filteredCategories = useMemo(
-    () => categories.filter((c) => c.module === values.module),
+  const categoryOptions = useMemo(
+    () =>
+      categories
+        .filter((c) => c.module === values.module)
+        .map((c) => ({ value: c.id, label: c.name })),
     [categories, values.module]
+  );
+  const languageOptions = useMemo(
+    () => languages.map((l) => ({ value: l.id, label: l.name })),
+    [languages]
   );
 
   function set<K extends keyof PostFormValues>(key: K, value: PostFormValues[K]) {
@@ -196,11 +222,23 @@ export function PostForm({
 
         <div className="flex flex-col gap-6">
           <Card>
+            <CardContent className="flex flex-col gap-3 pt-6">
+              <h3 className="text-sm font-medium">Imagem de capa</h3>
+              <CoverImageField
+                value={values.coverImage}
+                onChange={(value) => set("coverImage", value)}
+                error={state.fieldErrors?.coverImage?.[0]}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardContent className="flex flex-col gap-4 pt-6">
               <Field>
                 <FieldLabel>Módulo</FieldLabel>
                 <Select
                   name="module"
+                  items={MODULE_OPTIONS}
                   value={values.module}
                   onValueChange={(value) => set("module", value as PostFormValues["module"])}
                 >
@@ -208,9 +246,11 @@ export function PostForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TECNOLOGIA">Tecnologia</SelectItem>
-                    <SelectItem value="LIVROS">Livros</SelectItem>
-                    <SelectItem value="IDIOMAS">Idiomas</SelectItem>
+                    {MODULE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -219,6 +259,7 @@ export function PostForm({
                 <FieldLabel>Tipo de conteúdo</FieldLabel>
                 <Select
                   name="type"
+                  items={TYPE_OPTIONS}
                   value={values.type}
                   onValueChange={(value) => set("type", value as PostFormValues["type"])}
                 >
@@ -226,9 +267,11 @@ export function PostForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ARTICLE">Artigo</SelectItem>
-                    <SelectItem value="VIDEO">Vídeo</SelectItem>
-                    <SelectItem value="PODCAST">Podcast</SelectItem>
+                    {TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -237,6 +280,7 @@ export function PostForm({
                 <FieldLabel>Status</FieldLabel>
                 <Select
                   name="status"
+                  items={STATUS_OPTIONS}
                   value={values.status}
                   onValueChange={(value) => set("status", value as PostFormValues["status"])}
                 >
@@ -244,9 +288,11 @@ export function PostForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="DRAFT">Rascunho</SelectItem>
-                    <SelectItem value="PUBLISHED">Publicado</SelectItem>
-                    <SelectItem value="ARCHIVED">Arquivado</SelectItem>
+                    {STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -255,6 +301,7 @@ export function PostForm({
                 <FieldLabel>Categoria</FieldLabel>
                 <Select
                   name="categoryId"
+                  items={categoryOptions}
                   value={values.categoryId || undefined}
                   onValueChange={(value) => set("categoryId", value ?? "")}
                 >
@@ -262,9 +309,9 @@ export function PostForm({
                     <SelectValue placeholder="Sem categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
+                    {categoryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -276,6 +323,7 @@ export function PostForm({
                   <FieldLabel>Idioma</FieldLabel>
                   <Select
                     name="languageId"
+                    items={languageOptions}
                     value={values.languageId || undefined}
                     onValueChange={(value) => set("languageId", value ?? "")}
                   >
@@ -283,9 +331,9 @@ export function PostForm({
                       <SelectValue placeholder="Selecione o idioma" />
                     </SelectTrigger>
                     <SelectContent>
-                      {languages.map((language) => (
-                        <SelectItem key={language.id} value={language.id}>
-                          {language.name}
+                      {languageOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -304,18 +352,6 @@ export function PostForm({
                   />
                 </Field>
               )}
-
-              <Field>
-                <FieldLabel htmlFor="coverImage">URL da imagem de capa</FieldLabel>
-                <Input
-                  id="coverImage"
-                  name="coverImage"
-                  placeholder="https://..."
-                  value={values.coverImage}
-                  onChange={(e) => set("coverImage", e.target.value)}
-                />
-                <FieldError errors={state.fieldErrors?.coverImage?.map((message) => ({ message }))} />
-              </Field>
 
               <Field>
                 <FieldLabel htmlFor="tags">Tags (separadas por vírgula)</FieldLabel>

@@ -26,6 +26,7 @@ export function MediaPlayer({
           title="Reprodutor de vídeo"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
           className="size-full"
         />
       </div>

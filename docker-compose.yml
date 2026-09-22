@@ -4,12 +4,15 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: conectax
-      POSTGRES_PASSWORD: conectax
+      # Set a strong POSTGRES_PASSWORD in .env. It is only applied when the volume
+      # is first created — to change it on an existing DB, use ALTER USER.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-conectax}
       POSTGRES_DB: conectax
     ports:
       # Mapped to 5433 on the host to avoid clashing with a local PostgreSQL
       # install that may already be listening on 5432.
-      - "5433:5432"
+      # Bound to localhost only: Docker bypasses host firewalls (ufw) for published ports.
+      - "127.0.0.1:5433:5432"
     volumes:
       - conectax_pgdata:/var/lib/postgresql/data
 

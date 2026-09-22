@@ -16,6 +16,7 @@ export const authConfig = {
       if (user?.id) {
         token.id = user.id;
         token.role = user.role;
+        token.authTime = Date.now();
       }
       return token;
     },
@@ -24,6 +25,7 @@ export const authConfig = {
         session.user.id = token.id;
         session.user.role = token.role;
       }
+      session.authTime = token.authTime;
       return session;
     },
   },

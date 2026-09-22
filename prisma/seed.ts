@@ -11,8 +11,17 @@ function slug(text: string) {
 async function main() {
   console.log("Seeding database...");
 
-  const adminPassword = await bcrypt.hash("Admin@123456", 12);
-  const userPassword = await bcrypt.hash("Usuario@123456", 12);
+  // Passwords come from the environment so they never live in the repo.
+  const adminPlain = process.env.SEED_ADMIN_PASSWORD;
+  const userPlain = process.env.SEED_USER_PASSWORD;
+  if (!adminPlain || !userPlain || adminPlain.length < 12 || userPlain.length < 12) {
+    throw new Error(
+      "Defina SEED_ADMIN_PASSWORD e SEED_USER_PASSWORD (mínimo 12 caracteres) no .env antes de rodar o seed."
+    );
+  }
+
+  const adminPassword = await bcrypt.hash(adminPlain, 12);
+  const userPassword = await bcrypt.hash(userPlain, 12);
 
   const admin = await db.user.upsert({
     where: { email: "admin@conectax.local" },
@@ -248,8 +257,8 @@ async function main() {
 
   console.log("Seed finalizado.");
   console.log("----------------------------------------");
-  console.log("Login admin: admin@conectax.local / Admin@123456");
-  console.log("Login usuário: usuario@conectax.local / Usuario@123456");
+  console.log("Login admin: admin@conectax.local (senha: SEED_ADMIN_PASSWORD)");
+  console.log("Login usuário: usuario@conectax.local (senha: SEED_USER_PASSWORD)");
   console.log("----------------------------------------");
 }
 

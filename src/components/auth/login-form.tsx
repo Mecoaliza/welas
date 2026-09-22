@@ -41,6 +41,7 @@ export function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const justRegistered = searchParams.get("registered") === "1";
   const justReset = searchParams.get("reset") === "1";
+  const sessionExpired = searchParams.get("expired") === "1";
 
   return (
     <Card>
@@ -52,6 +53,11 @@ export function LoginForm() {
         {justRegistered && (
           <p className="mb-4 rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">
             Cadastro realizado! Faça login para continuar.
+          </p>
+        )}
+        {sessionExpired && (
+          <p className="mb-4 rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">
+            Sua sessão foi encerrada. Faça login novamente.
           </p>
         )}
         {justReset && (

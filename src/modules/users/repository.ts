@@ -20,10 +20,6 @@ export const userRepository = {
     return db.user.update({ where: { id }, data: { role } });
   },
 
-  remove(id: string) {
-    return db.user.delete({ where: { id } });
-  },
-
   findByEmail(email: string) {
     return db.user.findUnique({ where: { email } });
   },
@@ -44,7 +40,7 @@ export const userRepository = {
   },
 
   updatePassword(id: string, passwordHash: string) {
-    return db.user.update({ where: { id }, data: { passwordHash } });
+    return db.user.update({ where: { id }, data: { passwordHash, passwordChangedAt: new Date() } });
   },
 
   async withProfileStats(id: string) {

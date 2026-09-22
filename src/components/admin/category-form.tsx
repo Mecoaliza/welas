@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import { MODULE_LABELS } from "@/lib/constants";
 
+const MODULE_OPTIONS = Object.entries(MODULE_LABELS).map(([value, label]) => ({ value, label }));
+
 const initialState: CategoryActionState = {};
 
 function SubmitButton() {
@@ -50,14 +52,14 @@ export function CategoryForm() {
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">Módulo</label>
-        <Select name="module" defaultValue="TECNOLOGIA">
+        <Select name="module" items={MODULE_OPTIONS} defaultValue="TECNOLOGIA">
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {Object.entries(MODULE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
+            {MODULE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>

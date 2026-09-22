@@ -35,10 +35,14 @@ export function PostFilters({
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  const categoryItems = [{ value: "all", label: "Todas as categorias" }, ...categories];
+  const languageItems = [{ value: "all", label: "Todos os idiomas" }, ...(languages ?? [])];
+
   return (
     <div className="flex flex-wrap gap-3">
       {categories.length > 0 && (
         <Select
+          items={categoryItems}
           defaultValue={searchParams.get("categoria") ?? "all"}
           onValueChange={(value) => setParam("categoria", value)}
         >
@@ -57,6 +61,7 @@ export function PostFilters({
       )}
       {languages && languages.length > 0 && (
         <Select
+          items={languageItems}
           defaultValue={searchParams.get("idioma") ?? "all"}
           onValueChange={(value) => setParam("idioma", value)}
         >
@@ -74,6 +79,7 @@ export function PostFilters({
         </Select>
       )}
       <Select
+        items={sortOptions}
         defaultValue={searchParams.get("sort") ?? "recent"}
         onValueChange={(value) => setParam("sort", value)}
       >

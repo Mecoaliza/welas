@@ -1,28 +1,22 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
-
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/session";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
+  const user = await requireUser();
 
   return (
     <TooltipProvider delay={200}>
       <SidebarProvider>
         <AppSidebar
           user={{
-            name: session.user.name ?? "Usuário",
-            email: session.user.email ?? "",
-            avatar: session.user.image ?? null,
-            role: session.user.role,
+            name: user.name,
+            email: user.email,
+            avatar: user.image,
+            role: user.role,
           }}
         />
         <SidebarInset>

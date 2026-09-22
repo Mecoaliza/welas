@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { RATE_LIMITS, rateLimit } from "@/lib/rate-limit";
 import { commentRepository } from "./repository";
@@ -21,6 +22,9 @@ export async function createCommentAction(
 
   const parsed = commentSchema.safeParse({ content: formData.get("content") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Comentário inválido." };
+
+  const post = await db.post.findFirst({ where: { id: postId, status: "PUBLISHED" }, select: { id: true } });
+  if (!post) return { error: "Este conteúdo não está disponível para comentários." };
 
   await commentRepository.create({ userId: user.id, postId, content: parsed.data.content });
   revalidatePath(path);

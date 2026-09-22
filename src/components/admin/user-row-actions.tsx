@@ -14,6 +14,11 @@ import {
 } from "@/components/ui/select";
 import { DeleteButton } from "@/components/admin/delete-button";
 
+const ROLE_OPTIONS = [
+  { value: "USER", label: "Usuário" },
+  { value: "ADMIN", label: "Admin" },
+];
+
 export function UserRowActions({
   userId,
   role,
@@ -42,13 +47,16 @@ export function UserRowActions({
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <Select value={role} onValueChange={handleRoleChange} disabled={isPending}>
+      <Select items={ROLE_OPTIONS} value={role} onValueChange={handleRoleChange} disabled={isPending}>
         <SelectTrigger className="w-28">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="USER">Usuário</SelectItem>
-          <SelectItem value="ADMIN">Admin</SelectItem>
+          {ROLE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       <DeleteButton

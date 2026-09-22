@@ -53,7 +53,10 @@ export async function updateTopicAction(topicId: string, path: string, content: 
     throw new Error("Este tópico está fechado e não pode ser editado.");
   }
 
-  await forumRepository.update(topicId, { content });
+  const parsed = topicSchema.pick({ content: true }).safeParse({ content });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Conteúdo inválido.");
+
+  await forumRepository.update(topicId, { content: parsed.data.content });
   revalidatePath(path);
 }
 

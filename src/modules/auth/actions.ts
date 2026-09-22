@@ -6,10 +6,10 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 
-import { signIn, signOut } from "@/lib/auth";
+import { RateLimitedSignin, signIn, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/mail";
-import { RATE_LIMITS, rateLimit } from "@/lib/rate-limit";
+import { RATE_LIMITS, getClientIp, rateLimit } from "@/lib/rate-limit";
 import { userRepository } from "@/modules/users/repository";
 import {
   forgotPasswordSchema,
@@ -25,24 +25,27 @@ export type ActionState = {
 };
 
 async function clientIp() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  return getClientIp(await headers());
+}
+
+function hashToken(token: string) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/** Only same-site paths: "/x" yes, "//evil.com" or "https://…" no. */
+function safeCallbackUrl(raw: string | undefined) {
+  return raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\") ? raw : "/";
 }
 
 export async function loginAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const ip = await clientIp();
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
     return { error: "Dados inválidos.", fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const limited = rateLimit(`login:${ip}:${parsed.data.email}`, RATE_LIMITS.login);
-  if (!limited.success) {
-    return { error: "Muitas tentativas de login. Tente novamente em alguns minutos." };
-  }
-
-  const callbackUrl = formData.get("callbackUrl")?.toString() || "/";
+  // Rate limiting happens inside authorize() (src/lib/auth.ts).
+  const callbackUrl = safeCallbackUrl(formData.get("callbackUrl")?.toString());
 
   try {
     await signIn("credentials", {
@@ -51,6 +54,9 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
       redirectTo: callbackUrl,
     });
   } catch (error) {
+    if (error instanceof RateLimitedSignin) {
+      return { error: "Muitas tentativas de login. Tente novamente em alguns minutos." };
+    }
     if (error instanceof AuthError) {
       return { error: "E-mail ou senha inválidos." };
     }
@@ -76,13 +82,10 @@ export async function registerAction(_prevState: ActionState, formData: FormData
     return { error: "Dados inválidos.", fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  // An existing e-mail gets the same response as a new signup (no account is
+  // created), so the form can't be used to discover who is registered.
   const existing = await userRepository.findByEmail(parsed.data.email);
-  if (existing) {
-    return {
-      error: "Este e-mail já está cadastrado.",
-      fieldErrors: { email: ["Este e-mail já está cadastrado."] },
-    };
-  }
+  if (existing) redirect("/login?registered=1");
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   await userRepository.create({
@@ -114,13 +117,17 @@ export async function forgotPasswordAction(
   // Always respond with success to avoid leaking which e-mails are registered.
   if (user) {
     const token = crypto.randomBytes(32).toString("hex");
-    await db.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        token,
-        expiresAt: new Date(Date.now() + 60 * 60_000),
-      },
-    });
+    // Only the latest link works; the DB keeps a hash, never the token itself.
+    await db.$transaction([
+      db.passwordResetToken.deleteMany({ where: { userId: user.id } }),
+      db.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          token: hashToken(token),
+          expiresAt: new Date(Date.now() + 60 * 60_000),
+        },
+      }),
+    ]);
 
     const resetUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/reset-password?token=${token}`;
     await sendPasswordResetEmail(user.email, resetUrl);
@@ -138,23 +145,31 @@ export async function resetPasswordAction(
     return { error: "Dados inválidos.", fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const resetToken = await db.passwordResetToken.findUnique({
-    where: { token: parsed.data.token },
-  });
-
-  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
-    return { error: "Este link de redefinição é inválido ou expirou." };
-  }
+  const invalid = { error: "Este link de redefinição é inválido ou expirou." };
+  const tokenHash = hashToken(parsed.data.token);
+  const resetToken = await db.passwordResetToken.findUnique({ where: { token: tokenHash } });
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) return invalid;
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
-  await db.$transaction([
-    db.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
-    db.passwordResetToken.update({
-      where: { id: resetToken.id },
+  const used = await db.$transaction(async (tx) => {
+    // Claim the token atomically: a second concurrent request finds usedAt set and gets 0.
+    const claimed = await tx.passwordResetToken.updateMany({
+      where: { id: resetToken.id, usedAt: null, expiresAt: { gt: new Date() } },
       data: { usedAt: new Date() },
-    }),
-  ]);
+    });
+    if (claimed.count === 0) return false;
+
+    await tx.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash, passwordChangedAt: new Date() },
+    });
+    await tx.passwordResetToken.deleteMany({
+      where: { userId: resetToken.userId, id: { not: resetToken.id } },
+    });
+    return true;
+  });
+  if (!used) return invalid;
 
   redirect("/login?reset=1");
 }

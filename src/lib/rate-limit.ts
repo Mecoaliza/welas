@@ -44,8 +44,21 @@ export function rateLimit(
 
 export const RATE_LIMITS = {
   login: { limit: 10, windowMs: 15 * 60_000 },
+  loginIp: { limit: 50, windowMs: 15 * 60_000 },
   register: { limit: 5, windowMs: 60 * 60_000 },
   passwordReset: { limit: 5, windowMs: 60 * 60_000 },
   comment: { limit: 20, windowMs: 60_000 },
   post: { limit: 10, windowMs: 60_000 },
 } as const;
+
+/**
+ * Best-effort client IP. Only trust `x-forwarded-for` when a reverse proxy we control
+ * sets it (TRUST_PROXY=true) — then the last hop is the one the proxy appended.
+ * Without a proxy the header is client-controlled, so IP-based limits are advisory
+ * and per-account limits must carry the real protection.
+ */
+export function getClientIp(headers: Headers) {
+  const hops = headers.get("x-forwarded-for")?.split(",").map((h) => h.trim()).filter(Boolean) ?? [];
+  if (hops.length === 0) return "unknown";
+  return process.env.TRUST_PROXY === "true" ? hops[hops.length - 1] : hops[0];
+}

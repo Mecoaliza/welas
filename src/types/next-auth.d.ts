@@ -7,6 +7,8 @@ declare module "next-auth" {
       id: string;
       role: Role;
     } & DefaultSession["user"];
+    /** When the user actually signed in (ms). Unlike `iat`, it survives token refreshes. */
+    authTime?: number;
   }
 
   interface User {
@@ -18,5 +20,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: Role;
+    authTime?: number;
   }
 }

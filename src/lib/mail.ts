@@ -20,10 +20,15 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const transporter = getTransporter();
 
   if (!transporter) {
-    // No SMTP configured (e.g. local dev) — log so the flow stays testable.
-    console.warn(
-      `[mail] EMAIL_SERVER_HOST não configurado. Link de redefinição de senha para ${to}:\n${resetUrl}`
-    );
+    // No SMTP configured. In dev, log the link so the flow stays testable; in
+    // production never write a live reset token to the logs.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[mail] EMAIL_SERVER_HOST não configurado — e-mail de redefinição não enviado.");
+    } else {
+      console.warn(
+        `[mail] EMAIL_SERVER_HOST não configurado. Link de redefinição de senha para ${to}:\n${resetUrl}`
+      );
+    }
     return;
   }
 

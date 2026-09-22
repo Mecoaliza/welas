@@ -30,6 +30,13 @@ export async function PostDetail({ post, path }: { post: PostDetailData; path: s
 
   return (
     <article className="mx-auto flex max-w-3xl flex-col gap-6">
+      {post.coverImage && !post.media[0] && (
+        <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={post.coverImage} alt={post.title} className="size-full object-cover" />
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="secondary">{MODULE_LABELS[post.module]}</Badge>
         {post.category && (

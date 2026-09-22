@@ -10,7 +10,7 @@ export function isS3Configured() {
   );
 }
 
-function getClient() {
+export function getS3Client() {
   return new S3Client({
     region: process.env.S3_REGION || "auto",
     endpoint: process.env.S3_ENDPOINT || undefined,
@@ -24,7 +24,7 @@ function getClient() {
 
 /** Presigned PUT URL for a direct browser upload — the file never touches our server. */
 export async function createPresignedUpload(key: string, contentType: string) {
-  const client = getClient();
+  const client = getS3Client();
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET!,
     Key: key,
@@ -32,9 +32,11 @@ export async function createPresignedUpload(key: string, contentType: string) {
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: 60 });
-  const publicUrl = process.env.S3_PUBLIC_URL
+  return { uploadUrl, publicUrl: getPublicUrl(key) };
+}
+
+export function getPublicUrl(key: string) {
+  return process.env.S3_PUBLIC_URL
     ? `${process.env.S3_PUBLIC_URL.replace(/\/$/, "")}/${key}`
     : `https://${process.env.S3_BUCKET}.s3.amazonaws.com/${key}`;
-
-  return { uploadUrl, publicUrl };
 }
