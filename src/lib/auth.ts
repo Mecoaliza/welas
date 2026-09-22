@@ -20,7 +20,7 @@ const DUMMY_HASH = bcrypt.hashSync("dummy-password-for-timing", 12);
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(db),
-  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 15 * 60 },
   providers: [
     Credentials({
       name: "credentials",
