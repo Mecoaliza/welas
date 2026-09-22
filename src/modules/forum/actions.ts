@@ -17,7 +17,7 @@ export async function createTopicAction(
 ): Promise<ActionState> {
   const user = await requireUser();
 
-  const limited = rateLimit(`topic:${user.id}`, RATE_LIMITS.post);
+  const limited = await rateLimit(`topic:${user.id}`, RATE_LIMITS.post);
   if (!limited.success) return { error: "Aguarde um pouco antes de criar outro tópico." };
 
   const parsed = topicSchema.safeParse(Object.fromEntries(formData));
@@ -101,7 +101,7 @@ export async function createReplyAction(
 ): Promise<ReplyActionState> {
   const user = await requireUser();
 
-  const limited = rateLimit(`reply:${user.id}`, RATE_LIMITS.comment);
+  const limited = await rateLimit(`reply:${user.id}`, RATE_LIMITS.comment);
   if (!limited.success) return { error: "Você está respondendo rápido demais. Aguarde um pouco." };
 
   const topic = await forumRepository.findById(topicId);

@@ -107,17 +107,31 @@ Toda checagem de permissão é feita no servidor (middleware + `requireUser`/`re
 - Troque as senhas dos usuários criados pelo seed e defina um `POSTGRES_PASSWORD` forte (veja o `docker-compose.yml`).
 - O Postgres do `docker-compose.yml` só escuta em `127.0.0.1`. Não abra a porta 5433 no firewall.
 - Configure SMTP (`EMAIL_SERVER_*`): em produção, sem SMTP, o e-mail de redefinição de senha simplesmente não é enviado.
-- Se houver um proxy reverso (Nginx, Cloudflare, Vercel) na frente do app, defina `TRUST_PROXY=true` para o limite de tentativas usar o IP real do cliente.
-- O limite de tentativas fica em memória: vale para **um** processo. Com várias instâncias, troque por Redis/Upstash (`src/lib/rate-limit.ts`).
-- Uploads sem S3 ficam em `storage/uploads/` — inclua essa pasta no backup junto com o banco.
+- Se houver um proxy reverso seu (Nginx, Cloudflare) na frente do app, defina `TRUST_PROXY=true` para o limite de tentativas usar o IP real do cliente. Na Vercel isso é automático.
+- Com mais de uma instância (Vercel, vários processos), configure o Upstash Redis (`UPSTASH_REDIS_REST_*`); sem ele o limite de tentativas fica em memória e vale só para um processo.
+- Uploads sem S3/Blob ficam em `storage/uploads/` (só fora de produção) — inclua essa pasta no backup junto com o banco.
 
 ## Deploy (Vercel)
 
-1. Crie um banco Postgres gerenciado (Vercel Postgres, Neon, Supabase, RDS...).
-2. Configure as variáveis de ambiente do `.env.example` no projeto da Vercel.
-3. Configure o S3 (ex.: Cloudflare R2): na Vercel o disco é temporário, então uploads em `storage/uploads/` se perdem.
-4. Faça o deploy. A Vercel roda o script `vercel-build`, que aplica as migrations (`prisma migrate deploy`) antes do `next build`.
-5. Crie o admin uma vez, apontando para o banco de produção: `DATABASE_URL="..." npm run db:seed`.
+1. **Importe o repositório** em vercel.com → *Add New → Project*. O preset Next.js é detectado sozinho; a Vercel roda o script `vercel-build`.
+2. **Banco:** *Storage → Create → Neon (Postgres)* e conecte ao projeto. Ele cria `DATABASE_URL` (pooled) e `DATABASE_URL_UNPOOLED` (usada pelas migrations).
+3. **Imagens:** *Storage → Create → Blob* (acesso público). Cria `BLOB_READ_WRITE_TOKEN`.
+4. **Rate limit:** *Storage/Marketplace → Upstash (Redis)*. Cria `UPSTASH_REDIS_REST_*` ou `KV_REST_API_*` — os dois nomes funcionam.
+5. **E-mail (Resend):** crie uma API key em resend.com e verifique seu domínio (sem domínio, o remetente de teste `onboarding@resend.dev` só entrega para o seu próprio e-mail). Defina:
+   `EMAIL_SERVER_HOST=smtp.resend.com`, `EMAIL_SERVER_PORT=465`, `EMAIL_SERVER_USER=resend`, `EMAIL_SERVER_PASSWORD=<api key>`, `EMAIL_FROM="ConectaX <no-reply@seu-dominio>"`.
+6. **Demais variáveis** (*Settings → Environment Variables*, ambiente **Production**):
+   - `AUTH_SECRET` — gere um novo com `npx auth secret` (não reutilize o de dev).
+   - `NEXTAUTH_URL=https://<seu-app>.vercel.app` (ou seu domínio) — usado no link de redefinição de senha.
+7. **Previews:** em *Settings → Deployment Protection*, mantenha *Vercel Authentication* ativo. As migrations só rodam em deploys de **Production** (`VERCEL_ENV=production`); se os Previews compartilharem o banco de produção, eles leem/escrevem nele — prefira um branch de banco separado do Neon para Preview.
+8. **Deploy.** Depois, crie o admin uma única vez apontando para o banco de produção (use a URL *unpooled*):
+
+   ```bash
+   DATABASE_URL="<unpooled>" DATABASE_URL_UNPOOLED="<unpooled>" \
+   SEED_ADMIN_EMAIL="voce@seu-dominio.com" SEED_ADMIN_PASSWORD="<senha forte>" \
+   SEED_DEMO=false npm run db:seed
+   ```
+
+   Com `SEED_DEMO=false`, o seed cria só o admin, as categorias, os idiomas e as tags — sem usuário nem posts de exemplo.
 
 ## Login social (preparado, desativado por padrão)
 

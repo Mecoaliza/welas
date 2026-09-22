@@ -8,7 +8,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
  */
 export const LOCAL_UPLOAD_DIR = path.join(process.cwd(), "storage", "uploads");
 
-const EXTENSIONS: Record<string, string> = {
+export const IMAGE_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
@@ -16,7 +16,7 @@ const EXTENSIONS: Record<string, string> = {
 };
 
 const CONTENT_TYPES = Object.fromEntries(
-  Object.entries(EXTENSIONS).map(([type, ext]) => [ext, type])
+  Object.entries(IMAGE_EXTENSIONS).map(([type, ext]) => [ext, type])
 );
 CONTENT_TYPES.jpeg = "image/jpeg";
 
@@ -34,7 +34,7 @@ export function sniffImageType(bytes: Buffer): string | null {
 }
 
 export async function saveLocalUpload(bytes: Buffer, contentType: string) {
-  const name = `${crypto.randomUUID()}.${EXTENSIONS[contentType]}`;
+  const name = `${crypto.randomUUID()}.${IMAGE_EXTENSIONS[contentType]}`;
   await mkdir(LOCAL_UPLOAD_DIR, { recursive: true });
   await writeFile(path.join(LOCAL_UPLOAD_DIR, name), bytes);
   return `/api/uploads/files/${name}`;

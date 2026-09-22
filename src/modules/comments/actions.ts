@@ -17,7 +17,7 @@ export async function createCommentAction(
 ): Promise<CommentActionState> {
   const user = await requireUser();
 
-  const limited = rateLimit(`comment:${user.id}`, RATE_LIMITS.comment);
+  const limited = await rateLimit(`comment:${user.id}`, RATE_LIMITS.comment);
   if (!limited.success) return { error: "Você está comentando rápido demais. Aguarde um pouco." };
 
   const parsed = commentSchema.safeParse({ content: formData.get("content") });

@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { put } from "@vercel/blob";
 
 import { getSessionUser } from "@/lib/session";
 import { ALLOWED_UPLOAD_TYPES, UPLOAD_MAX_SIZE_BYTES, getS3Client, getPublicUrl, isS3Configured } from "@/lib/s3";
-import { saveLocalUpload, sniffImageType } from "@/lib/local-storage";
+import { IMAGE_EXTENSIONS, saveLocalUpload, sniffImageType } from "@/lib/local-storage";
 import { RATE_LIMITS, rateLimit } from "@/lib/rate-limit";
 
-/** Admin image upload (multipart). Goes to S3 when configured, local disk otherwise. */
+/**
+ * Admin image upload (multipart). Goes to S3 when configured, then Vercel Blob,
+ * then local disk — the last one only outside production, since serverless disks
+ * are read-only/ephemeral.
+ */
 export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) {
@@ -17,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
   }
 
-  const limited = rateLimit(`upload:${user.id}`, RATE_LIMITS.post);
+  const limited = await rateLimit(`upload:${user.id}`, RATE_LIMITS.post);
   if (!limited.success) {
     return NextResponse.json({ error: "Muitas tentativas. Aguarde um pouco." }, { status: 429 });
   }
@@ -28,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nenhum arquivo enviado." }, { status: 400 });
   }
   if (file.size > UPLOAD_MAX_SIZE_BYTES) {
-    return NextResponse.json({ error: "A imagem deve ter no máximo 5MB." }, { status: 400 });
+    return NextResponse.json({ error: "A imagem deve ter no máximo 4MB." }, { status: 400 });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -38,6 +43,19 @@ export async function POST(request: Request) {
   }
 
   if (!isS3Configured()) {
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const blob = await put(`uploads/${user.id}/${crypto.randomUUID()}.${IMAGE_EXTENSIONS[contentType]}`, bytes, {
+        access: "public",
+        contentType,
+      });
+      return NextResponse.json({ url: blob.url });
+    }
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Armazenamento de arquivos não configurado. Use uma URL externa por enquanto." },
+        { status: 501 }
+      );
+    }
     return NextResponse.json({ url: await saveLocalUpload(bytes, contentType) });
   }
 

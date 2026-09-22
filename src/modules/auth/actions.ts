@@ -72,7 +72,7 @@ export async function logoutAction() {
 
 export async function registerAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const ip = await clientIp();
-  const limited = rateLimit(`register:${ip}`, RATE_LIMITS.register);
+  const limited = await rateLimit(`register:${ip}`, RATE_LIMITS.register);
   if (!limited.success) {
     return { error: "Muitas tentativas de cadastro. Tente novamente mais tarde." };
   }
@@ -102,7 +102,7 @@ export async function forgotPasswordAction(
   formData: FormData
 ): Promise<ActionState> {
   const ip = await clientIp();
-  const limited = rateLimit(`forgot:${ip}`, RATE_LIMITS.passwordReset);
+  const limited = await rateLimit(`forgot:${ip}`, RATE_LIMITS.passwordReset);
   if (!limited.success) {
     return { error: "Muitas tentativas. Tente novamente mais tarde." };
   }

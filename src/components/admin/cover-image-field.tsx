@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+// Mirrors UPLOAD_MAX_SIZE_BYTES (src/lib/s3.ts); checked here so oversized files get a
+// clear message instead of the platform's generic 413.
+const MAX_SIZE_BYTES = 4 * 1024 * 1024;
 
 export function CoverImageField({
   value,
@@ -27,6 +30,10 @@ export function CoverImageField({
 
   async function upload(file: File) {
     setUploadError(null);
+    if (file.size > MAX_SIZE_BYTES) {
+      setUploadError("A imagem deve ter no máximo 4MB.");
+      return;
+    }
     setUploading(true);
     try {
       const body = new FormData();
@@ -133,7 +140,7 @@ export function CoverImageField({
           <span className="font-medium text-foreground">
             {uploading ? "Enviando..." : "Clique ou arraste uma imagem"}
           </span>
-          <span className="text-xs">JPG, PNG, WEBP ou GIF · até 5MB · ideal 16:9</span>
+          <span className="text-xs">JPG, PNG, WEBP ou GIF · até 4MB · ideal 16:9</span>
         </button>
       )}
 

@@ -1,7 +1,8 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-export const UPLOAD_MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+// 4MB: Vercel functions reject request bodies above 4.5MB.
+export const UPLOAD_MAX_SIZE_BYTES = 4 * 1024 * 1024;
 export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export function isS3Configured() {

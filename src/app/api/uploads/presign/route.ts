@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const limited = rateLimit(`upload:${user.id}`, RATE_LIMITS.post);
+  const limited = await rateLimit(`upload:${user.id}`, RATE_LIMITS.post);
   if (!limited.success) {
     return NextResponse.json({ error: "Muitas tentativas. Aguarde um pouco." }, { status: 429 });
   }

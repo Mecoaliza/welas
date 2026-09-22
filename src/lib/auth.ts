@@ -34,8 +34,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const parsed = loginSchema.safeParse(rawCredentials);
         if (!parsed.success) return null;
 
-        const byEmail = rateLimit(`login:${parsed.data.email}`, RATE_LIMITS.login);
-        const byIp = rateLimit(`login-ip:${getClientIp(request.headers)}`, RATE_LIMITS.loginIp);
+        const byEmail = await rateLimit(`login:${parsed.data.email}`, RATE_LIMITS.login);
+        const byIp = await rateLimit(`login-ip:${getClientIp(request.headers)}`, RATE_LIMITS.loginIp);
         if (!byEmail.success || !byIp.success) throw new RateLimitedSignin();
 
         const user = await db.user.findUnique({ where: { email: parsed.data.email } });
